@@ -31,6 +31,15 @@ car_width, car_height = 50, 100
 car_image = pygame.transform.scale(car_image, (car_width, car_height))
 car_x, car_y = WIDTH // 2 - car_width // 2, HEIGHT - car_height - 20
 car_direction = "front"
+cars = [
+    {"name": "Porsche 911 GT3 RS", "image": "Racing-car-front.png", "rychlost": 320, "akcelerace": 3.2, "ovladatelnost": 9},
+    {"name": "BMW M3 GT4", "image": "Racing-car-left.png", "rychlost": 290, "akcelerace": 4.0, "ovladatelnost": 8},
+    {"name": "Lamborghini Huracan STO", "image": "Racing-car-Right.png", "rychlost": 330, "akcelerace": 2.9, "ovladatelnost": 8}
+]
+
+vybrane_auto_index = 0
+in_car_selection = False
+
 
 # Rychlost pohybu
 speed = 5
@@ -49,8 +58,12 @@ def draw_menu(mouse_pos, clicked_button):
     buttons = ["Hrát", "Výběr mapy", "Výběr auta", "Nastavení"]
     button_rects = []
     
+    total_height = len(buttons) * 80
+    start_y = HEIGHT // 2 - total_height // 2
+
     for i, text in enumerate(buttons):
-        rect = pygame.Rect(WIDTH // 2 - 100, 150 + i * 80, 200, 50)
+        rect = pygame.Rect(WIDTH // 2 - 100, start_y + i * 80, 200, 50)
+
         color = WHITE
     
         if rect.collidepoint(mouse_pos):
@@ -65,6 +78,48 @@ def draw_menu(mouse_pos, clicked_button):
     
     return button_rects
 
+def vykresli_vyber_auta():
+    screen.fill(GRAY)
+    font = pygame.font.Font(None, 40)
+    nadpis = font.render("Vyber si auto", True, WHITE)
+    screen.blit(nadpis, (WIDTH // 2 - nadpis.get_width() // 2, 50))
+
+
+    auto = cars[vybrane_auto_index]
+    try:
+        image = pygame.image.load(auto["image"])
+        image = pygame.transform.scale(image, (150, 100))
+        screen.blit(image, (WIDTH // 2 - 75, 150))
+    except:
+        pass  # Pokud chybí obrázek, neudělá nic
+
+    jmeno = font.render(auto["name"], True, WHITE)
+    screen.blit(jmeno, (WIDTH // 2 - jmeno.get_width() // 2, 270))
+    # Vykreslení parametrů auta
+    parametry = f"Rychlost: {auto['rychlost']} km/h | Akcelerace: {auto['akcelerace']}s | Ovládatelnost: {auto['ovladatelnost']}/10"
+    param_text = font.render(parametry, True, WHITE)
+    screen.blit(param_text, (WIDTH // 2 - param_text.get_width() // 2, 310))
+
+
+    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])  # ← šipka
+    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])  # → šipka
+
+    pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 350, 200, 50), border_radius=10)
+    text = font.render("Vybrat", True, BLACK)
+    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 360))
+
+def toggle_fullscreen():
+    global fullscreen, screen, WIDTH, HEIGHT
+    fullscreen = not fullscreen
+    if fullscreen:
+        screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
+        WIDTH, HEIGHT = info.current_w, info.current_h
+    else:
+        screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
+        WIDTH, HEIGHT = 800, 600
+
+
+
 # Herní smyčka
 running = True
 clock = pygame.time.Clock()
@@ -73,6 +128,7 @@ clicked_button = None
 
 while running:
     clock.tick(FPS)
+    WIDTH, HEIGHT = screen.get_size()
     
     if in_menu:
         button_rects = draw_menu(mouse_pos, clicked_button)
@@ -96,10 +152,45 @@ while running:
                         elif action == "Výběr mapy":
                             messagebox.showinfo("Výběr mapy", "Zde si vyberete mapu.")
                         elif action == "Výběr auta":
-                            messagebox.showinfo("Výběr auta", "Zde si vyberete auto.")
+                            in_menu = False
+                            in_car_selection = True
                         elif action == "Nastavení":
                             messagebox.showinfo("Nastavení", "Zde bude možnost změny jazyka.")
                 clicked_button = None  # Reset kliknutého tlačítka po provedení akce
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.display.iconify()
+
+    #Logika pro výběr auta
+    elif in_car_selection:
+        vykresli_vyber_auta()
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                if messagebox.askyesno("Ukončení", "Opravdu chcete ukončit hru?"):
+                    running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                # Kliknutí na levou šipku
+                if 100 <= x <= 130 and 180 <= y <= 220:
+                    vybrane_auto_index = (vybrane_auto_index - 1) % len(cars)
+                # Kliknutí na pravou šipku
+                elif 670 <= x <= 700 and 180 <= y <= 220:
+                    vybrane_auto_index = (vybrane_auto_index + 1) % len(cars)
+                # Kliknutí na tlačítko Vybrat
+                elif WIDTH // 2 - 100 <= x <= WIDTH // 2 + 100 and 350 <= y <= 400:
+                    nove_auto = pygame.image.load(cars[vybrane_auto_index]["image"])
+                    car_image = pygame.transform.scale(nove_auto, (car_width, car_height))
+                    in_car_selection = False
+                    in_menu = True
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.display.iconify()
 
     else:
         # Herní logika
@@ -122,6 +213,12 @@ while running:
                 if not fullscreen:
                     WIDTH, HEIGHT = event.w, event.h
                     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.display.iconify()
+
 
         # Ovládání auta
         keys = pygame.key.get_pressed()
