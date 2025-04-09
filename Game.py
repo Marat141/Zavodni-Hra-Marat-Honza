@@ -48,6 +48,7 @@ def draw_menu(mouse_pos, clicked_button):
     button_font = pygame.font.Font(None, 40)
     buttons = ["Hrát", "Výběr mapy", "Výběr auta", "Nastavení"]
     button_rects = []
+    
     for i, text in enumerate(buttons):
         rect = pygame.Rect(WIDTH // 2 - 100, 150 + i * 80, 200, 50)
         color = WHITE
