@@ -40,6 +40,21 @@ cars = [
 vybrane_auto_index = 0
 in_car_selection = False
 
+maps = [
+    {"name": "Dijon-Prenois", "image": "maps/Ain-Diab-circuit-Asi.png"},
+    {"name": "Spa", "image": "maps/Antire Motor racing circuit - asi.png"},
+    {"name": "Monaco", "image": "maps/Autodromo Internazionale Enzo e Dino Ferrari.png"},
+    {"name": "Suzuka", "image": "maps/Circuit Dijon-Prenois.png"},
+    {"name": "Red Bull Ring", "image": "maps/Redbull Ring.png"},
+    {"name": "Brno Circuit", "image": "maps/Valenica street circuit.png"}
+]
+vybrana_mapa_index = 0
+background_image = pygame.image.load(maps[0]["image"])
+background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
+in_map_selection = False
+
+
+
 
 # Rychlost pohybu
 speed = 5
@@ -118,6 +133,37 @@ def toggle_fullscreen():
         screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
         WIDTH, HEIGHT = 800, 600
 
+def check_off_road(x, y):
+    # Získá barvu pixelu pod autem
+    pixel_color = background_image.get_at((int(x + car_width / 2), int(y + car_height / 2)))
+    # Pokud není šedá, reset na start
+    if pixel_color != (128, 128, 128, 255):  # RGBA šedá
+        return True
+    return False
+
+def vykresli_vyber_mapy():
+    screen.fill(GRAY)
+    font = pygame.font.Font(None, 40)
+    nadpis = font.render("Vyber si mapu", True, WHITE)
+    screen.blit(nadpis, (WIDTH // 2 - nadpis.get_width() // 2, 50))
+
+    mapa = maps[vybrana_mapa_index]
+    image = pygame.image.load(mapa["image"])
+    image = pygame.transform.scale(image, (300, 200))
+    screen.blit(image, (WIDTH // 2 - 150, 100))
+
+    nazev = font.render(mapa["name"], True, WHITE)
+    screen.blit(nazev, (WIDTH // 2 - nazev.get_width() // 2, 320))
+
+    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])  # ← šipka
+    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])  # → šipka
+
+    pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 370, 200, 50), border_radius=10)
+    text = font.render("Vybrat", True, BLACK)
+    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 380))
+
+
+
 
 
 # Herní smyčka
@@ -150,13 +196,41 @@ while running:
                         if action == "Hrát":
                             in_menu = False
                         elif action == "Výběr mapy":
-                            messagebox.showinfo("Výběr mapy", "Zde si vyberete mapu.")
+                            in_menu = False
+                            in_map_selection = True
                         elif action == "Výběr auta":
                             in_menu = False
                             in_car_selection = True
                         elif action == "Nastavení":
                             messagebox.showinfo("Nastavení", "Zde bude možnost změny jazyka.")
                 clicked_button = None  # Reset kliknutého tlačítka po provedení akce
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.display.iconify()
+    elif in_map_selection:
+        vykresli_vyber_mapy()
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                if messagebox.askyesno("Ukončení", "Opravdu chcete ukončit hru?"):
+                    running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = event.pos
+                # Kliknutí na levou šipku
+                if 100 <= x <= 130 and 180 <= y <= 220:
+                    vybrana_mapa_index = (vybrana_mapa_index - 1) % len(maps)
+                # Kliknutí na pravou šipku
+                elif 670 <= x <= 700 and 180 <= y <= 220:
+                    vybrana_mapa_index = (vybrana_mapa_index + 1) % len(maps)
+                # Kliknutí na tlačítko Vybrat
+                elif WIDTH // 2 - 100 <= x <= WIDTH // 2 + 100 and 370 <= y <= 420:
+                    background_image = pygame.image.load(maps[vybrana_mapa_index]["image"])
+                    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
+                    in_map_selection = False
+                    in_menu = True
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     toggle_fullscreen()
