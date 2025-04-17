@@ -27,7 +27,7 @@ pygame.display.set_caption("2D Racing Game")
 
 # Načtení obrázku auta
 car_image = pygame.image.load("Racing-car-front.png")
-car_width, car_height = 50, 100
+car_width, car_height = 25, 50
 car_image = pygame.transform.scale(car_image, (car_width, car_height))
 car_x, car_y = WIDTH // 2 - car_width // 2, HEIGHT - car_height - 20
 car_direction = "front"
@@ -41,12 +41,52 @@ vybrane_auto_index = 0
 in_car_selection = False
 
 maps = [
-    {"name": "Dijon-Prenois", "image": "maps/Ain-Diab-circuit-Asi.png"},
-    {"name": "Spa", "image": "maps/Antire Motor racing circuit - asi.png"},
-    {"name": "Monaco", "image": "maps/Autodromo Internazionale Enzo e Dino Ferrari.png"},
-    {"name": "Suzuka", "image": "maps/Circuit Dijon-Prenois.png"},
-    {"name": "Red Bull Ring", "image": "maps/Redbull Ring.png"},
-    {"name": "Brno Circuit", "image": "maps/Valenica street circuit.png"}
+        {
+        "name": "Ain-Diab-circuit",
+        "image": "maps/Ain-Diab-circuit-Asi.png",
+        "start_x": 400,
+        "start_y": 360,
+        "start_dir": "front",
+        "finish_zone": (380, 340, 60, 40)
+
+    },
+        {
+        "name": "Antire Motor racing circuit", 
+        "image": "maps/Antire Motor racing circuit - asi.png",
+        "start_x": 450,
+        "start_y": 500,
+        "start_dir": "left"
+    },
+    {
+        "name": "Autodromo Internazionale Enzo e Dino Ferrari",
+        "image": "maps/Autodromo Internazionale Enzo e Dino Ferrari.png",
+        "start_x": 150,
+        "start_y": 480,
+        "start_dir": "right"
+
+    },
+    {
+        "name": "Circuit Dijon-Prenois", 
+        "image": "maps/Circuit Dijon-Prenois.png",
+        "start_x": 350,
+        "start_y": 120,
+        "start_dir": "right"
+
+    },
+    {
+        "name": "Red Bull Ring", 
+        "image": "maps/Redbull Ring.png",
+        "start_x": 420,
+        "start_y": 500,
+        "start_dir": "left"
+
+    },
+    {
+        "name": "Valenica street circuit", 
+        "image": "maps/Valenica street circuit.png",
+        "start_x": 220,
+        "start_y": 310,
+    }
 ]
 vybrana_mapa_index = 0
 background_image = pygame.image.load(maps[0]["image"])
@@ -57,7 +97,7 @@ in_map_selection = False
 
 
 # Rychlost pohybu
-speed = 5
+speed = 2
 fullscreen = False
 
 # Herní stav
@@ -123,6 +163,7 @@ def vykresli_vyber_auta():
     text = font.render("Vybrat", True, BLACK)
     screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 360))
 
+
 def toggle_fullscreen():
     global fullscreen, screen, WIDTH, HEIGHT
     fullscreen = not fullscreen
@@ -133,13 +174,40 @@ def toggle_fullscreen():
         screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
         WIDTH, HEIGHT = 800, 600
 
+
+def is_road_color(color, tolerance=15):
+    r, g, b, *_ = color
+
+    # Detekce šedé (běžná trať)
+    is_gray = abs(r - g) < tolerance and abs(g - b) < tolerance and abs(r - 128) < tolerance
+
+    # Povolení černé nebo bílé (startovní čára apod.)
+    is_white = r > 240 and g > 240 and b > 240
+    is_black = r < 20 and g < 20 and b < 20
+
+    return is_gray or is_white or is_black
+
+
 def check_off_road(x, y):
-    # Získá barvu pixelu pod autem
-    pixel_color = background_image.get_at((int(x + car_width / 2), int(y + car_height / 2)))
-    # Pokud není šedá, reset na start
-    if pixel_color != (128, 128, 128, 255):  # RGBA šedá
-        return True
-    return False
+    try:
+        pixel_color = background_image.get_at((int(x + car_width / 2), int(y + car_height / 2)))
+    except IndexError:
+        return True  # Mimo obraz
+
+    if is_road_color(pixel_color):
+        return False  # Jsme na silnici nebo startovní čáře
+    return True  # Jsme mimo
+
+def is_on_finish_line(x, y, track_image, zone_rect):
+    color = track_image.get_at((int(x), int(y)))[:3]
+
+    if not (color == (255, 255, 255) or color == (0, 0, 0)):
+        return False
+
+    return zone_rect.collidepoint(x, y)
+
+
+
 
 def vykresli_vyber_mapy():
     screen.fill(GRAY)
@@ -229,6 +297,12 @@ while running:
                 elif WIDTH // 2 - 100 <= x <= WIDTH // 2 + 100 and 370 <= y <= 420:
                     background_image = pygame.image.load(maps[vybrana_mapa_index]["image"])
                     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
+
+                    # Nastav pozici auta podle mapy
+                    car_x = maps[vybrana_mapa_index]["start_x"]
+                    car_y = maps[vybrana_mapa_index]["start_y"]
+                    car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
+
                     in_map_selection = False
                     in_menu = True
             elif event.type == pygame.KEYDOWN:
@@ -236,6 +310,7 @@ while running:
                     toggle_fullscreen()
                 elif event.key == pygame.K_ESCAPE:
                     pygame.display.iconify()
+
 
     #Logika pro výběr auta
     elif in_car_selection:
@@ -313,6 +388,24 @@ while running:
         car_x = max(0, min(car_x, WIDTH - car_width))
         car_y = max(0, min(car_y, HEIGHT - car_height))
 
+        # Detekce kolize – jsi mimo trať?
+        if check_off_road(car_x, car_y):
+            messagebox.showinfo("Kolize", "Vyjel jsi z trati! Vracíš se na start.")
+            car_x = maps[vybrana_mapa_index]["start_x"]
+            car_y = maps[vybrana_mapa_index]["start_y"]
+            car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
+            
+        # Detekce cílové čáry
+        zone = pygame.Rect(*maps[vybrana_mapa_index]["finish_zone"])
+        if is_on_finish_line(car_x + car_width // 2, car_y + car_height // 2, background_image, zone):
+            messagebox.showinfo("Cíl!", "Gratuluji, dojel jsi do cíle!")
+            car_x = maps[vybrana_mapa_index]["start_x"]
+            car_y = maps[vybrana_mapa_index]["start_y"]
+            car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
+
+
+
+
         # Otočení auta
         if car_direction == "left":
             rotated_car = pygame.transform.rotate(car_image, 90)
@@ -324,8 +417,9 @@ while running:
             rotated_car = pygame.transform.rotate(car_image, 180)
         
         # Vykreslení
-        screen.fill(BLACK)
-        screen.blit(rotated_car, (car_x, car_y))
+        screen.blit(background_image, (0, 0))  # NEJDŘÍV mapa!
+        screen.blit(rotated_car, (car_x, car_y))  # Pak auto
         pygame.display.flip()
+
     
 pygame.quit()
