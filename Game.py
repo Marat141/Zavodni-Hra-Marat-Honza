@@ -190,14 +190,24 @@ def toggle_fullscreen():
 def is_road_color(color, tolerance=15):
     r, g, b, *_ = color
 
-    # Detekce šedé (běžná trať)
+    # Detekce šedé
     is_gray = abs(r - g) < tolerance and abs(g - b) < tolerance and abs(r - 128) < tolerance
 
-    # Povolení černé nebo bílé (startovní čára apod.)
+    # Detekce bílé
     is_white = r > 240 and g > 240 and b > 240
+
+    # Detekce černé
     is_black = r < 20 and g < 20 and b < 20
 
+    # Detekce červené – NEpočítá se jako silnice!
+    is_red = abs(r - 255) < 10 and g < 50 and b < 50
+
+    if is_red:
+        return False  # červená = zastav!
+
     return is_gray or is_white or is_black
+
+    
 
 
 def check_off_road(x, y):
@@ -368,21 +378,34 @@ while running:
 
         # Ovládání auta
         keys = pygame.key.get_pressed()
+        # Navrhovaný nový pohyb
+        new_x, new_y = car_x, car_y
+
         if keys[pygame.K_a]:
-            car_x -= speed
-            car_direction = "left"
+            test_x = car_x - speed
+            if not check_off_road(test_x, car_y):
+                new_x = test_x
+                car_direction = "left"
+
         if keys[pygame.K_d]:
-            car_x += speed
-            car_direction = "right"
+            test_x = car_x + speed
+            if not check_off_road(test_x, car_y):
+                new_x = test_x
+                car_direction = "right"
+
         if keys[pygame.K_w]:
-            car_y -= speed
-            car_direction = "front"
+            test_y = car_y - speed
+            if not check_off_road(car_x, test_y):
+                new_y = test_y
+                car_direction = "front"
+
         if keys[pygame.K_s]:
-            car_y += speed
-            car_direction = "back"
+            test_y = car_y + speed
+            if not check_off_road(car_x, test_y):
+                new_y = test_y
+                car_direction = "back"
 
-        
-
+        car_x, car_y = new_x, new_y
         # Zabránění pohybu mimo obrazovku
         # Získání středu auta
         center_x = car_x + car_width // 2
@@ -394,17 +417,22 @@ while running:
                 lap_started = True
                 lap_ready = True
             elif lap_ready:
-                # Detekce správného směru
                 if car_direction == start_direction:
-                    messagebox.showinfo("Cíl!", "Gratuluji, dojel jsi do cíle správným směrem!")
-                    lap_started = False
-                    lap_ready = False
-                else:
-                    messagebox.showerror("Chyba!", "Projíždíš cílovou čáru špatným směrem! Budeš vrácen na start.")
-                    mapa = maps[vybrana_mapa_index]
-                    car_x = mapa["start_x"]
-                    car_y = mapa["start_y"]
-                    car_direction = mapa.get("start_dir", "front")
+                    # Dialog s volbou pomocí tkinter
+                    pygame.event.set_blocked(None)  # Zablokuj zpracování událostí
+                    pygame.event.pump()             # Vynuť zpracování fronty
+                    result = messagebox.askquestion("Cíl!", "Dorazil jste do cíle!\nChcete si dát ještě jedno kolo nebo chcete zpátky do menu?")
+                    pygame.event.set_allowed(None)  # Povol zpět všechny události
+                    root.withdraw()   # opět skryjeme tkinter okno
+
+                    if result == 'yes':  # Uživatel klikl na "Ano" (Znovu)
+                        mapa = maps[vybrana_mapa_index]
+                        car_x = mapa["start_x"]
+                        car_y = mapa["start_y"]
+                        car_direction = mapa.get("start_dir", "front")
+                    else:  # Uživatel klikl na "Ne" (Zpět do menu)
+                        in_menu = True
+
                     lap_started = False
                     lap_ready = False
         else:
