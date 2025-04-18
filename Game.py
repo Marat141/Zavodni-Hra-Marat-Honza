@@ -41,16 +41,14 @@ vybrane_auto_index = 0
 in_car_selection = False
 
 maps = [
-        {
+    {
         "name": "Ain-Diab-circuit",
         "image": "maps/Ain-Diab-circuit-Asi.png",
-        "start_x": 400,
-        "start_y": 360,
-        "start_dir": "front",
-        "finish_zone": (380, 340, 60, 40)
-
+        "start_x": 180,
+        "start_y": 450,
+        "start_dir": "right",
     },
-        {
+    {
         "name": "Antire Motor racing circuit", 
         "image": "maps/Antire Motor racing circuit - asi.png",
         "start_x": 450,
@@ -93,6 +91,12 @@ background_image = pygame.image.load(maps[0]["image"])
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 in_map_selection = False
 
+# Nové globální proměnné:
+lap_started = False
+lap_ready = False
+
+start_direction = maps[vybrana_mapa_index].get("start_dir", "front")  # Výchozí směr auta na mapě
+
 
 
 
@@ -102,6 +106,14 @@ fullscreen = False
 
 # Herní stav
 in_menu = True
+
+def is_on_finish_line(x, y):
+    try:
+        color = background_image.get_at((int(x), int(y)))[:3]
+        return color == (0, 0, 0)  # pouze čistě černá je cílová čára
+    except IndexError:
+        return False
+
 
 def draw_menu(mouse_pos, clicked_button):
     screen.fill(GRAY)
@@ -198,17 +210,6 @@ def check_off_road(x, y):
         return False  # Jsme na silnici nebo startovní čáře
     return True  # Jsme mimo
 
-def is_on_finish_line(x, y, track_image, zone_rect):
-    color = track_image.get_at((int(x), int(y)))[:3]
-
-    if not (color == (255, 255, 255) or color == (0, 0, 0)):
-        return False
-
-    return zone_rect.collidepoint(x, y)
-
-
-
-
 def vykresli_vyber_mapy():
     screen.fill(GRAY)
     font = pygame.font.Font(None, 40)
@@ -229,10 +230,6 @@ def vykresli_vyber_mapy():
     pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 370, 200, 50), border_radius=10)
     text = font.render("Vybrat", True, BLACK)
     screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 380))
-
-
-
-
 
 # Herní smyčka
 running = True
@@ -384,27 +381,35 @@ while running:
             car_y += speed
             car_direction = "back"
 
+        
+
         # Zabránění pohybu mimo obrazovku
-        car_x = max(0, min(car_x, WIDTH - car_width))
-        car_y = max(0, min(car_y, HEIGHT - car_height))
+        # Získání středu auta
+        center_x = car_x + car_width // 2
+        center_y = car_y + car_height // 2
 
-        # Detekce kolize – jsi mimo trať?
-        if check_off_road(car_x, car_y):
-            messagebox.showinfo("Kolize", "Vyjel jsi z trati! Vracíš se na start.")
-            car_x = maps[vybrana_mapa_index]["start_x"]
-            car_y = maps[vybrana_mapa_index]["start_y"]
-            car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
-            
-        # Detekce cílové čáry
-        zone = pygame.Rect(*maps[vybrana_mapa_index]["finish_zone"])
-        if is_on_finish_line(car_x + car_width // 2, car_y + car_height // 2, background_image, zone):
-            messagebox.showinfo("Cíl!", "Gratuluji, dojel jsi do cíle!")
-            car_x = maps[vybrana_mapa_index]["start_x"]
-            car_y = maps[vybrana_mapa_index]["start_y"]
-            car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
-
-
-
+        # Kontrola průjezdu cílové čárou
+        if is_on_finish_line(center_x, center_y):
+            if not lap_started:
+                lap_started = True
+                lap_ready = True
+            elif lap_ready:
+                # Detekce správného směru
+                if car_direction == start_direction:
+                    messagebox.showinfo("Cíl!", "Gratuluji, dojel jsi do cíle správným směrem!")
+                    lap_started = False
+                    lap_ready = False
+                else:
+                    messagebox.showerror("Chyba!", "Projíždíš cílovou čáru špatným směrem! Budeš vrácen na start.")
+                    mapa = maps[vybrana_mapa_index]
+                    car_x = mapa["start_x"]
+                    car_y = mapa["start_y"]
+                    car_direction = mapa.get("start_dir", "front")
+                    lap_started = False
+                    lap_ready = False
+        else:
+            if lap_started:
+                lap_ready = True
 
         # Otočení auta
         if car_direction == "left":
