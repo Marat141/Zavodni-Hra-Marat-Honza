@@ -97,30 +97,42 @@ lap_ready = False
 
 start_direction = maps[vybrana_mapa_index].get("start_dir", "front")  # Výchozí směr auta na mapě
 
-
-
-
 # Rychlost pohybu
-speed = 2
+speed = 5
 fullscreen = False
+was_on_finish_line = False
+
 
 # Herní stav
 in_menu = True
-
+# Kontrola jednoho bodu – jestli je na čáře
 def is_on_finish_line(x, y):
     try:
         color = background_image.get_at((int(x), int(y)))[:3]
-        return color == (0, 0, 0)  # pouze čistě černá je cílová čára
+        return color == (0, 0, 0)
     except IndexError:
         return False
+
+# Kontrola více bodů – jestli aspoň jeden z nich je na čáře
+def is_on_finish_line_area(x, y, width, height, num_points=3):
+    for i in range(num_points):
+        point_x = int(x + i * width / (num_points - 1))
+        point_y = int(y + height)
+        if is_on_finish_line(point_x, point_y):
+            return True
+    return False
+
+def get_scaled_start_position(map_data, width, height):
+    scale_x = width / 800
+    scale_y = height / 600
+    return int(map_data["start_x"] * scale_x), int(map_data["start_y"] * scale_y)
+
 
 def resize_background():
     global background_image
     mapa = maps[vybrana_mapa_index]
     background_image = pygame.image.load(mapa["image"])
     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
-
-
 
 def draw_menu(mouse_pos, clicked_button):
     screen.fill(GRAY)
@@ -158,14 +170,13 @@ def vykresli_vyber_auta():
     nadpis = font.render("Vyber si auto", True, WHITE)
     screen.blit(nadpis, (WIDTH // 2 - nadpis.get_width() // 2, 50))
 
-
     auto = cars[vybrane_auto_index]
     try:
         image = pygame.image.load(auto["image"])
         image = pygame.transform.scale(image, (150, 100))
         screen.blit(image, (WIDTH // 2 - 75, 150))
     except:
-        pass  # Pokud chybí obrázek, neudělá nic
+        pass
 
     jmeno = font.render(auto["name"], True, WHITE)
     screen.blit(jmeno, (WIDTH // 2 - jmeno.get_width() // 2, 270))
@@ -174,17 +185,15 @@ def vykresli_vyber_auta():
     param_text = font.render(parametry, True, WHITE)
     screen.blit(param_text, (WIDTH // 2 - param_text.get_width() // 2, 310))
 
-
-    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])  # ← šipka
-    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])  # → šipka
+    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])
+    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])
 
     pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 350, 200, 50), border_radius=10)
     text = font.render("Vybrat", True, BLACK)
     screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 360))
 
-
 def toggle_fullscreen():
-    global fullscreen, screen, WIDTH, HEIGHT
+    global fullscreen, screen, WIDTH, HEIGHT, car_x, car_y
     fullscreen = not fullscreen
     if fullscreen:
         screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
@@ -193,6 +202,9 @@ def toggle_fullscreen():
         screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
         WIDTH, HEIGHT = 800, 600
 
+    resize_background()  # Už tam máš
+    car_x, car_y = get_scaled_start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
+
 
 def is_road_color(color, tolerance=15):
     r, g, b, *_ = color
@@ -200,32 +212,27 @@ def is_road_color(color, tolerance=15):
     # Detekce šedé
     is_gray = abs(r - g) < tolerance and abs(g - b) < tolerance and abs(r - 128) < tolerance
 
-    # Detekce bílé
     is_white = r > 240 and g > 240 and b > 240
 
-    # Detekce černé
     is_black = r < 20 and g < 20 and b < 20
 
-    # Detekce červené – NEpočítá se jako silnice!
+    
     is_red = abs(r - 255) < 10 and g < 50 and b < 50
 
     if is_red:
-        return False  # červená = zastav!
+        return False
 
     return is_gray or is_white or is_black
-
-    
-
 
 def check_off_road(x, y):
     try:
         pixel_color = background_image.get_at((int(x + car_width / 2), int(y + car_height / 2)))
     except IndexError:
-        return True  # Mimo obraz
+        return True 
 
     if is_road_color(pixel_color):
-        return False  # Jsme na silnici nebo startovní čáře
-    return True  # Jsme mimo
+        return False 
+    return True 
 
 def vykresli_vyber_mapy():
     screen.fill(GRAY)
@@ -313,8 +320,7 @@ while running:
                     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
                     # Nastav pozici auta podle mapy
-                    car_x = maps[vybrana_mapa_index]["start_x"]
-                    car_y = maps[vybrana_mapa_index]["start_y"]
+                    car_x, car_y = get_scaled_start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
                     car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
 
                     in_map_selection = False
@@ -421,32 +427,33 @@ while running:
         center_y = car_y + car_height // 2
 
         # Kontrola průjezdu cílové čárou
-        if is_on_finish_line(center_x, center_y):
+        if is_on_finish_line_area(car_x, car_y, car_width, car_height):
             if not lap_started:
                 lap_started = True
                 lap_ready = True
-            elif lap_ready:
-                if car_direction == start_direction:
-                    # Dialog s volbou pomocí tkinter
-                    pygame.event.set_blocked(None)  # Zablokuj zpracování událostí
-                    pygame.event.pump()             # Vynuť zpracování fronty
-                    result = messagebox.askquestion("Cíl!", "Dorazil jste do cíle!\nChcete si dát ještě jedno kolo nebo chcete zpátky do menu?")
-                    pygame.event.set_allowed(None)  # Povol zpět všechny události
-                    root.withdraw()   # opět skryjeme tkinter okno
+            elif lap_ready and car_direction == start_direction:
+                pygame.event.set_blocked(None)
+                pygame.event.pump()
+                result = messagebox.askquestion(
+                    "Cíl!", "Dorazil jste do cíle!\nChcete si dát ještě jedno kolo nebo chcete zpátky do menu?"
+                )
+                pygame.event.set_allowed(None)
+                root.withdraw()
 
-                    if result == 'yes':  # Uživatel klikl na "Ano" (Znovu)
-                        mapa = maps[vybrana_mapa_index]
-                        car_x = mapa["start_x"]
-                        car_y = mapa["start_y"]
-                        car_direction = mapa.get("start_dir", "front")
-                    else:  # Uživatel klikl na "Ne" (Zpět do menu)
-                        in_menu = True
+                if result == 'yes':  # Restart kola
+                    mapa = maps[vybrana_mapa_index]
+                    # Calculate scaled position based on the current screen size
+                    car_x, car_y = get_scaled_start_position(mapa, WIDTH, HEIGHT)
+                    car_direction = mapa.get("start_dir", "front")
+                else:
+                    in_menu = True
 
-                    lap_started = False
-                    lap_ready = False
+                lap_started = False
+                lap_ready = False
         else:
             if lap_started:
                 lap_ready = True
+
 
         # Otočení auta
         if car_direction == "left":
