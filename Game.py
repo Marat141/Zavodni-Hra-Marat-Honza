@@ -114,6 +114,13 @@ def is_on_finish_line(x, y):
     except IndexError:
         return False
 
+def resize_background():
+    global background_image
+    mapa = maps[vybrana_mapa_index]
+    background_image = pygame.image.load(mapa["image"])
+    background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
+
+
 
 def draw_menu(mouse_pos, clicked_button):
     screen.fill(GRAY)
@@ -369,6 +376,8 @@ while running:
                 if not fullscreen:
                     WIDTH, HEIGHT = event.w, event.h
                     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+                    resize_background()  # <<< Tohle je nové
+
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     toggle_fullscreen()
