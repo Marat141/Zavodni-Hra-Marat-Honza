@@ -1,6 +1,7 @@
 import pygame
 import tkinter as tk
 from tkinter import messagebox
+import time
 
 # Inicializace pygame
 pygame.init()
@@ -95,6 +96,12 @@ in_map_selection = False
 lap_started = False
 lap_ready = False
 
+laps = 0
+max_laps = 3
+lap_times = []
+lap_start_time = None
+finished = False
+
 start_direction = maps[vybrana_mapa_index].get("start_dir", "front")  # Výchozí směr auta na mapě
 
 # Rychlost pohybu
@@ -105,27 +112,22 @@ was_on_finish_line = False
 
 # Herní stav
 in_menu = True
-# Kontrola jednoho bodu – jestli je na čáře
-def is_on_finish_line(x, y):
-    try:
-        color = background_image.get_at((int(x), int(y)))[:3]
-        return color == (0, 0, 0)
-    except IndexError:
-        return False
 
-# Kontrola více bodů – jestli aspoň jeden z nich je na čáře
-def is_on_finish_line_area(x, y, width, height, num_points=3):
-    for i in range(num_points):
-        point_x = int(x + i * width / (num_points - 1))
-        point_y = int(y + height)
-        if is_on_finish_line(point_x, point_y):
-            return True
-    return False
 
 def get_scaled_start_position(map_data, width, height):
     scale_x = width / 800
     scale_y = height / 600
     return int(map_data["start_x"] * scale_x), int(map_data["start_y"] * scale_y)
+
+
+def is_finish_line(x, y):
+    try:
+        pixel_color = background_image.get_at((int(x + car_width / 2), int(y + car_height / 2)))
+    except IndexError:
+        return False
+
+    return pixel_color[:3] == (0, 0, 0)  # čistá černá
+
 
 
 def resize_background():
@@ -202,7 +204,7 @@ def toggle_fullscreen():
         screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
         WIDTH, HEIGHT = 800, 600
 
-    resize_background()  # Už tam máš
+    resize_background() 
     car_x, car_y = get_scaled_start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
 
 
@@ -248,8 +250,8 @@ def vykresli_vyber_mapy():
     nazev = font.render(mapa["name"], True, WHITE)
     screen.blit(nazev, (WIDTH // 2 - nazev.get_width() // 2, 320))
 
-    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])  # ← šipka
-    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])  # → šipka
+    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])
+    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])
 
     pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 370, 200, 50), border_radius=10)
     text = font.render("Vybrat", True, BLACK)
@@ -278,7 +280,7 @@ while running:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 for rect, action in button_rects:
                     if rect.collidepoint(event.pos):
-                        clicked_button = action  # Uložíme, na které tlačítko bylo kliknuto
+                        clicked_button = action 
             elif event.type == pygame.MOUSEBUTTONUP:
                 for rect, action in button_rects:
                     if rect.collidepoint(event.pos) and clicked_button == action:
@@ -421,38 +423,45 @@ while running:
                 car_direction = "back"
 
         car_x, car_y = new_x, new_y
-        # Zabránění pohybu mimo obrazovku
-        # Získání středu auta
         center_x = car_x + car_width // 2
         center_y = car_y + car_height // 2
 
-        # Kontrola průjezdu cílové čárou
-        if is_on_finish_line_area(car_x, car_y, car_width, car_height):
-            if not lap_started:
-                lap_started = True
-                lap_ready = True
-            elif lap_ready and car_direction == start_direction:
-                pygame.event.set_blocked(None)
-                pygame.event.pump()
-                result = messagebox.askquestion(
-                    "Cíl!", "Dorazil jste do cíle!\nChcete si dát ještě jedno kolo nebo chcete zpátky do menu?"
-                )
-                pygame.event.set_allowed(None)
-                root.withdraw()
+        on_finish_line = is_finish_line(new_x, new_y)
 
-                if result == 'yes':  # Restart kola
-                    mapa = maps[vybrana_mapa_index]
-                    # Calculate scaled position based on the current screen size
-                    car_x, car_y = get_scaled_start_position(mapa, WIDTH, HEIGHT)
-                    car_direction = mapa.get("start_dir", "front")
-                else:
-                    in_menu = True
+        if on_finish_line and not was_on_finish_line:
+            if not lap_start_time:
+                lap_start_time = time.time()  # první kolo start
+            else:
+                laps += 1
+                if laps >= max_laps:
+                    total_time = time.time() - lap_start_time
+                    messagebox.showinfo("Závod dokončen", f"Dojel jsi {max_laps} kol za {total_time:.2f} sekund!")
+                    finished = True  # Zamezí další hře bez restartu
+        was_on_finish_line = on_finish_line
 
-                lap_started = False
-                lap_ready = False
-        else:
-            if lap_started:
-                lap_ready = True
+        if laps >= max_laps:
+            total_time = time.time() - lap_start_time
+            lap_times.append(total_time)  # uloží čas do seznamu
+            messagebox.showinfo("Závod dokončen", f"Dojel jsi {max_laps} kol za {total_time:.2f} sekund!")
+
+            again = messagebox.askyesno("Nové kolo?", "Chceš jet další kolo?")
+            
+            if again:
+                # reset proměnných pro nové kolo
+                laps = 0
+                lap_start_time = time.time()
+
+                # správné volání s parametry
+                car_x, car_y = get_scaled_start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
+
+                car_direction = "front"
+                finished = False
+            else:
+                # zobraz tabulku výsledků
+                times_str = "\n".join([f"Kolo {i+1}: {t:.2f} s" for i, t in enumerate(lap_times)])
+                messagebox.showinfo("Tabulka výsledků", f"Tvoje časy:\n{times_str}")
+                draw_menu(mouse_pos, clicked_button)
+                in_menu = True
 
 
         # Otočení auta
@@ -470,5 +479,7 @@ while running:
         screen.blit(rotated_car, (car_x, car_y))  # Pak auto
         pygame.display.flip()
 
+        if finished: 
+            continue
     
 pygame.quit()
