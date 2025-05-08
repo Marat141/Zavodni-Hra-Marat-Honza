@@ -3,44 +3,46 @@ import tkinter as tk
 from tkinter import messagebox
 import time
 
-# Inicializace pygame
+# Inicializace knihoven
 pygame.init()
 
-# Inicializace Tkinter pro dialogová okna
+# Inicializace Tkinter bez hlavního okna (pro dialogy)
 root = tk.Tk()
-root.withdraw()  # Skrytí hlavního okna Tkinter
+root.withdraw()
 
-# Získání velikosti obrazovky
+# Informace o velikosti obrazovky
 info = pygame.display.Info()
-WIDTH, HEIGHT = 800, 600  # Výchozí velikost okna
+WIDTH, HEIGHT = 800, 600
 FPS = 60
 
-# Barvy
+# Barvy v RGB
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (100, 100, 100)
-HIGHLIGHT = (150, 150, 150)  # Barva zvýraznění
-CLICKED = (200, 200, 200)    # Barva při kliknutí
+HIGHLIGHT = (150, 150, 150)
+CLICKED = (200, 200, 200)
 
-# Vytvoření okna s možností změny velikosti
+# Vytvoření herního okna
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("2D Racing Game")
 
-# Načtení obrázku auta
+# Načtení a úprava obrázku auta
 car_image = pygame.image.load("Racing-car-front.png")
-car_width, car_height = 25, 50
+car_width, car_height = 40, 50
 car_image = pygame.transform.scale(car_image, (car_width, car_height))
-car_x, car_y = WIDTH // 2 - car_width // 2, HEIGHT - car_height - 20
+car_x = WIDTH // 2 - car_width // 2
+car_y = HEIGHT - car_height - 20
 car_direction = "front"
+
 cars = [
-    {"name": "Porsche 911 GT3 RS", "image": "Racing-car-front.png", "rychlost": 320, "akcelerace": 3.2, "ovladatelnost": 9},
-    {"name": "BMW M3 GT4", "image": "Racing-car-left.png", "rychlost": 290, "akcelerace": 4.0, "ovladatelnost": 8},
-    {"name": "Lamborghini Huracan STO", "image": "Racing-car-Right.png", "rychlost": 330, "akcelerace": 2.9, "ovladatelnost": 8}
+    {"name": "Porsche 911 GT3 RS", "image": "Porse-front.png", "rychlost": 320, "akcelerace": 3.2, "ovladatelnost": 9},
+    {"name": "BMW M3 GT4", "image": "Racing-car-front.png", "rychlost": 290, "akcelerace": 4.0, "ovladatelnost": 8}, #Nenašel jsem obrázek
+    {"name": "Lamborghini Huracan STO", "image": "Racing-car-front.png", "rychlost": 330, "akcelerace": 2.9, "ovladatelnost": 8} #Nenašel jsem obrázek
 ]
 
 vybrane_auto_index = 0
 in_car_selection = False
-
+#Vybraná mapa, Seznam map a jejich nastavení
 maps = [
     {
         "name": "Ain-Diab-circuit",
@@ -92,7 +94,6 @@ background_image = pygame.image.load(maps[0]["image"])
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 in_map_selection = False
 
-# Nové globální proměnné:
 lap_started = False
 lap_ready = False
 
@@ -104,21 +105,19 @@ finished = False
 
 start_direction = maps[vybrana_mapa_index].get("start_dir", "front")  # Výchozí směr auta na mapě
 
-# Rychlost pohybu
 speed = 5
 fullscreen = False
 was_on_finish_line = False
 
+arrow_offset = 200
+arrow_y = 200
 
-# Herní stav
 in_menu = True
 
-
-def get_scaled_start_position(map_data, width, height):
+def start_position(map_data, width, height): 
     scale_x = width / 800
     scale_y = height / 600
     return int(map_data["start_x"] * scale_x), int(map_data["start_y"] * scale_y)
-
 
 def is_finish_line(x, y):
     try:
@@ -127,8 +126,6 @@ def is_finish_line(x, y):
         return False
 
     return pixel_color[:3] == (0, 0, 0)  # čistá černá
-
-
 
 def resize_background():
     global background_image
@@ -166,34 +163,6 @@ def draw_menu(mouse_pos, clicked_button):
     
     return button_rects
 
-def vykresli_vyber_auta():
-    screen.fill(GRAY)
-    font = pygame.font.Font(None, 40)
-    nadpis = font.render("Vyber si auto", True, WHITE)
-    screen.blit(nadpis, (WIDTH // 2 - nadpis.get_width() // 2, 50))
-
-    auto = cars[vybrane_auto_index]
-    try:
-        image = pygame.image.load(auto["image"])
-        image = pygame.transform.scale(image, (150, 100))
-        screen.blit(image, (WIDTH // 2 - 75, 150))
-    except:
-        pass
-
-    jmeno = font.render(auto["name"], True, WHITE)
-    screen.blit(jmeno, (WIDTH // 2 - jmeno.get_width() // 2, 270))
-    # Vykreslení parametrů auta
-    parametry = f"Rychlost: {auto['rychlost']} km/h | Akcelerace: {auto['akcelerace']}s | Ovládatelnost: {auto['ovladatelnost']}/10"
-    param_text = font.render(parametry, True, WHITE)
-    screen.blit(param_text, (WIDTH // 2 - param_text.get_width() // 2, 310))
-
-    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])
-    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])
-
-    pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 350, 200, 50), border_radius=10)
-    text = font.render("Vybrat", True, BLACK)
-    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 360))
-
 def toggle_fullscreen():
     global fullscreen, screen, WIDTH, HEIGHT, car_x, car_y
     fullscreen = not fullscreen
@@ -203,10 +172,8 @@ def toggle_fullscreen():
     else:
         screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
         WIDTH, HEIGHT = 800, 600
-
-    resize_background() 
-    car_x, car_y = get_scaled_start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
-
+    resize_background()
+    car_x, car_y = start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
 
 def is_road_color(color, tolerance=15):
     r, g, b, *_ = color
@@ -236,7 +203,13 @@ def check_off_road(x, y):
         return False 
     return True 
 
-def vykresli_vyber_mapy():
+def map_selection():
+    global arrow_offset, arrow_y
+
+    # Dynamické přizpůsobení pozice šipek dle velikosti okna
+    arrow_offset = WIDTH // 4
+    arrow_y = HEIGHT // 2 - 50
+
     screen.fill(GRAY)
     font = pygame.font.Font(None, 40)
     nadpis = font.render("Vyber si mapu", True, WHITE)
@@ -250,12 +223,74 @@ def vykresli_vyber_mapy():
     nazev = font.render(mapa["name"], True, WHITE)
     screen.blit(nazev, (WIDTH // 2 - nazev.get_width() // 2, 320))
 
-    pygame.draw.polygon(screen, WHITE, [(100, 200), (130, 180), (130, 220)])
-    pygame.draw.polygon(screen, WHITE, [(700, 200), (670, 180), (670, 220)])
+    # Levá šipka (←)
+    pygame.draw.polygon(
+        screen, WHITE,
+        [(WIDTH // 2 - arrow_offset - 30, arrow_y),
+         (WIDTH // 2 - arrow_offset, arrow_y - 20),
+         (WIDTH // 2 - arrow_offset, arrow_y + 20)]
+    )
 
+    # Pravá šipka (→)
+    pygame.draw.polygon(
+        screen, WHITE,
+        [(WIDTH // 2 + arrow_offset + 30, arrow_y),
+         (WIDTH // 2 + arrow_offset, arrow_y - 20),
+         (WIDTH // 2 + arrow_offset, arrow_y + 20)]
+    )
+
+    # Tlačítko "Vybrat"
     pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 370, 200, 50), border_radius=10)
     text = font.render("Vybrat", True, BLACK)
     screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 380))
+
+def car_selection():
+    global arrow_offset, arrow_y
+    arrow_offset = WIDTH // 4
+    arrow_y = HEIGHT // 2 - 30
+
+    screen.fill(GRAY)
+    font = pygame.font.Font(None, 40)
+    nadpis = font.render("Vyber si auto", True, WHITE)
+    screen.blit(nadpis, (WIDTH // 2 - nadpis.get_width() // 2, 50))
+
+    auto = cars[vybrane_auto_index]
+    try:
+        image = pygame.image.load(auto["image"])
+        image = pygame.transform.scale(image, (150, 100))
+        screen.blit(image, (WIDTH // 2 - 75, 150))
+    except:
+        pass
+
+    jmeno = font.render(auto["name"], True, WHITE)
+    screen.blit(jmeno, (WIDTH // 2 - jmeno.get_width() // 2, 270))
+
+    # Parametry auta
+    parametry = f"Rychlost: {auto['rychlost']} km/h | Akcelerace: {auto['akcelerace']}s | Ovládatelnost: {auto['ovladatelnost']}/10"
+    param_text = font.render(parametry, True, WHITE)
+    screen.blit(param_text, (WIDTH // 2 - param_text.get_width() // 2, 310))
+
+    # Levá šipka (←)
+    pygame.draw.polygon(
+        screen, WHITE,
+        [(WIDTH // 2 - arrow_offset - 30, arrow_y),
+         (WIDTH // 2 - arrow_offset, arrow_y - 20),
+         (WIDTH // 2 - arrow_offset, arrow_y + 20)]
+    )
+
+    # Pravá šipka (→)
+    pygame.draw.polygon(
+        screen, WHITE,
+        [(WIDTH // 2 + arrow_offset + 30, arrow_y),
+         (WIDTH // 2 + arrow_offset, arrow_y - 20),
+         (WIDTH // 2 + arrow_offset, arrow_y + 20)]
+    )
+
+    # Tlačítko Vybrat
+    pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 350, 200, 50), border_radius=10)
+    text = font.render("Vybrat", True, BLACK)
+    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 360))
+
 
 # Herní smyčka
 running = True
@@ -293,15 +328,16 @@ while running:
                             in_menu = False
                             in_car_selection = True
                         elif action == "Nastavení":
-                            messagebox.showinfo("Nastavení", "Zde bude možnost změny jazyka.")
-                clicked_button = None  # Reset kliknutého tlačítka po provedení akce
+                            messagebox.showinfo("Nastavení", "Zde bude možnost změny jazyka.") # Ale zatím nic
+                clicked_button = None
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     toggle_fullscreen()
                 elif event.key == pygame.K_ESCAPE:
                     pygame.display.iconify()
+    # Logika pro výběr mapy
     elif in_map_selection:
-        vykresli_vyber_mapy()
+        map_selection()
         pygame.display.flip()
 
         for event in pygame.event.get():
@@ -311,32 +347,35 @@ while running:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
                 # Kliknutí na levou šipku
-                if 100 <= x <= 130 and 180 <= y <= 220:
+                if WIDTH // 2 - arrow_offset - 30 <= x <= WIDTH // 2 - arrow_offset and arrow_y - 20 <= y <= arrow_y + 20:
                     vybrana_mapa_index = (vybrana_mapa_index - 1) % len(maps)
                 # Kliknutí na pravou šipku
-                elif 670 <= x <= 700 and 180 <= y <= 220:
+                elif WIDTH // 2 + arrow_offset <= x <= WIDTH // 2 + arrow_offset + 30 and arrow_y - 20 <= y <= arrow_y + 20:
                     vybrana_mapa_index = (vybrana_mapa_index + 1) % len(maps)
                 # Kliknutí na tlačítko Vybrat
                 elif WIDTH // 2 - 100 <= x <= WIDTH // 2 + 100 and 370 <= y <= 420:
                     background_image = pygame.image.load(maps[vybrana_mapa_index]["image"])
                     background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
-
-                    # Nastav pozici auta podle mapy
-                    car_x, car_y = get_scaled_start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
+                    # Nastavení výchozí pozice a směru auta
+                    car_x, car_y = start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
                     car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
 
+                    laps = 0
+                    lap_start_time = None
+                    finished = False
+                    was_on_finish_line = False
+                    lap_times = []
                     in_map_selection = False
                     in_menu = True
+
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     toggle_fullscreen()
                 elif event.key == pygame.K_ESCAPE:
                     pygame.display.iconify()
-
-
-    #Logika pro výběr auta
+    #Část kódu pro výběr auta
     elif in_car_selection:
-        vykresli_vyber_auta()
+        car_selection()
         pygame.display.flip()
 
         for event in pygame.event.get():
@@ -345,13 +384,13 @@ while running:
                     running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = event.pos
-                # Kliknutí na levou šipku
-                if 100 <= x <= 130 and 180 <= y <= 220:
+                # Levá šipka
+                if WIDTH // 2 - arrow_offset - 30 <= x <= WIDTH // 2 - arrow_offset and arrow_y - 20 <= y <= arrow_y + 20:
                     vybrane_auto_index = (vybrane_auto_index - 1) % len(cars)
-                # Kliknutí na pravou šipku
-                elif 670 <= x <= 700 and 180 <= y <= 220:
+                # Pravá šipka
+                elif WIDTH // 2 + arrow_offset <= x <= WIDTH // 2 + arrow_offset + 30 and arrow_y - 20 <= y <= arrow_y + 20:
                     vybrane_auto_index = (vybrane_auto_index + 1) % len(cars)
-                # Kliknutí na tlačítko Vybrat
+                # Tlačítko Vybrat
                 elif WIDTH // 2 - 100 <= x <= WIDTH // 2 + 100 and 350 <= y <= 400:
                     nove_auto = pygame.image.load(cars[vybrane_auto_index]["image"])
                     car_image = pygame.transform.scale(nove_auto, (car_width, car_height))
@@ -362,12 +401,11 @@ while running:
                     toggle_fullscreen()
                 elif event.key == pygame.K_ESCAPE:
                     pygame.display.iconify()
-
     else:
         # Herní logika
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                if messagebox.askyesno("Ukončení", "Opravdu chcete ukončit hru?"):
+                if messagebox.askyesno("Ukončení", "Opravdu chcete ukončit svou hru?"):
                     running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
@@ -384,7 +422,7 @@ while running:
                 if not fullscreen:
                     WIDTH, HEIGHT = event.w, event.h
                     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
-                    resize_background()  # <<< Tohle je nové
+                    resize_background()
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
@@ -392,10 +430,8 @@ while running:
                 elif event.key == pygame.K_ESCAPE:
                     pygame.display.iconify()
 
-
         # Ovládání auta
         keys = pygame.key.get_pressed()
-        # Navrhovaný nový pohyb
         new_x, new_y = car_x, car_y
 
         if keys[pygame.K_a]:
@@ -430,34 +466,31 @@ while running:
 
         if on_finish_line and not was_on_finish_line:
             if not lap_start_time:
-                lap_start_time = time.time()  # první kolo start
+                lap_start_time = time.time()
             else:
                 laps += 1
                 if laps >= max_laps:
                     total_time = time.time() - lap_start_time
                     messagebox.showinfo("Závod dokončen", f"Dojel jsi {max_laps} kol za {total_time:.2f} sekund!")
-                    finished = True  # Zamezí další hře bez restartu
+                    finished = True
         was_on_finish_line = on_finish_line
 
         if laps >= max_laps:
             total_time = time.time() - lap_start_time
-            lap_times.append(total_time)  # uloží čas do seznamu
+            lap_times.append(total_time)
             messagebox.showinfo("Závod dokončen", f"Dojel jsi {max_laps} kol za {total_time:.2f} sekund!")
 
             again = messagebox.askyesno("Nové kolo?", "Chceš jet další kolo?")
             
             if again:
-                # reset proměnných pro nové kolo
                 laps = 0
                 lap_start_time = time.time()
 
-                # správné volání s parametry
-                car_x, car_y = get_scaled_start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
+                car_x, car_y = start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
 
                 car_direction = "front"
                 finished = False
             else:
-                # zobraz tabulku výsledků
                 times_str = "\n".join([f"Kolo {i+1}: {t:.2f} s" for i, t in enumerate(lap_times)])
                 messagebox.showinfo("Tabulka výsledků", f"Tvoje časy:\n{times_str}")
                 draw_menu(mouse_pos, clicked_button)
@@ -475,8 +508,8 @@ while running:
             rotated_car = pygame.transform.rotate(car_image, 180)
         
         # Vykreslení
-        screen.blit(background_image, (0, 0))  # NEJDŘÍV mapa!
-        screen.blit(rotated_car, (car_x, car_y))  # Pak auto
+        screen.blit(background_image, (0, 0))
+        screen.blit(rotated_car, (car_x, car_y)) 
         pygame.display.flip()
 
         if finished: 
