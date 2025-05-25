@@ -1,6 +1,6 @@
 import pygame
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox 
 import time
 
 # Inicializace knihoven
@@ -114,12 +114,12 @@ arrow_y = 200
 
 in_menu = True
 
-def start_position(map_data, width, height): 
+def start_position(map_data, width, height): #Tato funkce určuje výchozí pozici auta na mapě a map_data je slovník s informacemi o mapě a width, height jsou šířka a výška okna
     scale_x = width / 800
     scale_y = height / 600
     return int(map_data["start_x"] * scale_x), int(map_data["start_y"] * scale_y)
 
-def is_finish_line(x, y):
+def is_finish_line(x, y): #Tato funkce určuje, zda je auto na cílové čáře. x, y jsou souřadnice auta
     try:
         pixel_color = background_image.get_at((int(x + car_width / 2), int(y + car_height / 2)))
     except IndexError:
@@ -175,7 +175,7 @@ def toggle_fullscreen():
     resize_background()
     car_x, car_y = start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
 
-def is_road_color(color, tolerance=15):
+def is_road_color(color, tolerance=15):#Tolerance je tolerance pro detekci šedé barvy
     r, g, b, *_ = color
 
     # Detekce šedé
@@ -193,7 +193,7 @@ def is_road_color(color, tolerance=15):
 
     return is_gray or is_white or is_black
 
-def check_off_road(x, y):
+def check_off_road(x, y):#
     try:
         pixel_color = background_image.get_at((int(x + car_width / 2), int(y + car_height / 2)))
     except IndexError:
@@ -300,18 +300,18 @@ clicked_button = None
 
 while running:
     clock.tick(FPS)
-    WIDTH, HEIGHT = screen.get_size()
+    WIDTH, HEIGHT = screen.get_size()# tento řádek kodu dělá to že se velikost okna přizpůsobí velikosti obrazovky
     
     if in_menu:
         button_rects = draw_menu(mouse_pos, clicked_button)
-        pygame.display.flip()
+        pygame.display.flip()# tento řádek kodu dělá to že se okno překreslí
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 if messagebox.askyesno("Ukončení", "Opravdu chcete ukončit hru?"):
                     running = False
             elif event.type == pygame.MOUSEMOTION:
-                mouse_pos = event.pos
+                mouse_pos = event.pos # tento řádek kodu dělá to že se myš pohybuje po obrazovce
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 for rect, action in button_rects:
                     if rect.collidepoint(event.pos):
@@ -361,9 +361,9 @@ while running:
                     car_direction = maps[vybrana_mapa_index].get("start_dir", "front")
 
                     laps = 0
-                    lap_start_time = None
-                    finished = False
-                    was_on_finish_line = False
+                    lap_start_time = None# to
+                    finished = False# je zde potreb
+                    was_on_finish_line = False# 
                     lap_times = []
                     in_map_selection = False
                     in_menu = True
@@ -376,7 +376,7 @@ while running:
     #Část kódu pro výběr auta
     elif in_car_selection:
         car_selection()
-        pygame.display.flip()
+        pygame.display.flip()# 
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
