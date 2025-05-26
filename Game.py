@@ -105,8 +105,8 @@ finished = False
 
 start_direction = maps[vybrana_mapa_index].get("start_dir", "front")  # Výchozí směr auta na mapě
 
-speed = 5
 fullscreen = False
+speed = 5  # výchozí
 was_on_finish_line = False
 
 arrow_offset = 200
@@ -164,16 +164,19 @@ def draw_menu(mouse_pos, clicked_button):
     return button_rects
 
 def toggle_fullscreen():
-    global fullscreen, screen, WIDTH, HEIGHT, car_x, car_y
+    global fullscreen, screen, WIDTH, HEIGHT, car_x, car_y, speed
     fullscreen = not fullscreen
     if fullscreen:
         screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.FULLSCREEN)
         WIDTH, HEIGHT = info.current_w, info.current_h
+        speed = 15
     else:
         screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
         WIDTH, HEIGHT = 800, 600
+        speed = 5
     resize_background()
     car_x, car_y = start_position(maps[vybrana_mapa_index], WIDTH, HEIGHT)
+
 
 def is_road_color(color, tolerance=15):#Tolerance je tolerance pro detekci šedé barvy
     r, g, b, *_ = color
@@ -290,6 +293,89 @@ def car_selection():
     pygame.draw.rect(screen, HIGHLIGHT, (WIDTH // 2 - 100, 350, 200, 50), border_radius=10)
     text = font.render("Vybrat", True, BLACK)
     screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 360))
+
+def show_ingame_message(lines, button_text="OK"):
+    waiting = True
+    font = pygame.font.Font(None, 40)
+    button_font = pygame.font.Font(None, 30)
+    
+    overlay = pygame.Surface((WIDTH, HEIGHT))
+    overlay.set_alpha(200)
+    overlay.fill((0, 0, 0))
+    
+    button_rect = pygame.Rect(WIDTH//2 - 75, HEIGHT//2 + 50, 150, 40)
+    
+    while waiting:
+        screen.blit(overlay, (0, 0))
+
+        for i, line in enumerate(lines):
+            text_surface = font.render(line, True, WHITE)
+            screen.blit(text_surface, (WIDTH//2 - text_surface.get_width()//2, HEIGHT//2 - 60 + i*40))
+        
+        pygame.draw.rect(screen, HIGHLIGHT, button_rect, border_radius=10)
+        button_text_surface = button_font.render(button_text, True, BLACK)
+        screen.blit(button_text_surface, (button_rect.centerx - button_text_surface.get_width()//2,
+                                          button_rect.centery - button_text_surface.get_height()//2))
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN and button_rect.collidepoint(event.pos):
+                waiting = False
+            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                waiting = False
+
+
+def ask_ingame_yesno(question_lines):
+    waiting = True
+    font = pygame.font.Font(None, 40)
+    button_font = pygame.font.Font(None, 30)
+    
+    overlay = pygame.Surface((WIDTH, HEIGHT))
+    overlay.set_alpha(200)
+    overlay.fill((0, 0, 0))
+
+    yes_rect = pygame.Rect(WIDTH//2 - 160, HEIGHT//2 + 40, 120, 40)
+    no_rect = pygame.Rect(WIDTH//2 + 40, HEIGHT//2 + 40, 120, 40)
+
+    while waiting:
+        screen.blit(overlay, (0, 0))
+
+        for i, line in enumerate(question_lines):
+            text_surface = font.render(line, True, WHITE)
+            screen.blit(text_surface, (WIDTH//2 - text_surface.get_width()//2, HEIGHT//2 - 60 + i*40))
+        
+        # YES button
+        pygame.draw.rect(screen, HIGHLIGHT, yes_rect, border_radius=10)
+        yes_text = button_font.render("Ano", True, BLACK)
+        screen.blit(yes_text, (yes_rect.centerx - yes_text.get_width()//2,
+                               yes_rect.centery - yes_text.get_height()//2))
+        
+        # NO button
+        pygame.draw.rect(screen, HIGHLIGHT, no_rect, border_radius=10)
+        no_text = button_font.render("Ne", True, BLACK)
+        screen.blit(no_text, (no_rect.centerx - no_text.get_width()//2,
+                              no_rect.centery - no_text.get_height()//2))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if yes_rect.collidepoint(event.pos):
+                    return True
+                elif no_rect.collidepoint(event.pos):
+                    return False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return True
+                elif event.key == pygame.K_ESCAPE:
+                    return False
 
 
 # Herní smyčka
@@ -471,16 +557,16 @@ while running:
                 laps += 1
                 if laps >= max_laps:
                     total_time = time.time() - lap_start_time
-                    messagebox.showinfo("Závod dokončen", f"Dojel jsi {max_laps} kol za {total_time:.2f} sekund!")
+                    show_ingame_message([f"Dojel jsi {max_laps} kol", f"za {total_time:.2f} sekund!"])
                     finished = True
         was_on_finish_line = on_finish_line
 
         if laps >= max_laps:
             total_time = time.time() - lap_start_time
             lap_times.append(total_time)
-            messagebox.showinfo("Závod dokončen", f"Dojel jsi {max_laps} kol za {total_time:.2f} sekund!")
+            show_ingame_message([f"Dojel jsi {max_laps} kol", f"za {total_time:.2f} sekund!"])
 
-            again = messagebox.askyesno("Nové kolo?", "Chceš jet další kolo?")
+            again = ask_ingame_yesno(["Chceš jet další kolo?"])
             
             if again:
                 laps = 0
@@ -491,8 +577,6 @@ while running:
                 car_direction = "front"
                 finished = False
             else:
-                times_str = "\n".join([f"Kolo {i+1}: {t:.2f} s" for i, t in enumerate(lap_times)])
-                messagebox.showinfo("Tabulka výsledků", f"Tvoje časy:\n{times_str}")
                 draw_menu(mouse_pos, clicked_button)
                 in_menu = True
 
